@@ -2,16 +2,26 @@ Function Update-AllDocumentsViewColumns {
     param(
         [string]$libraryTitle
     )
-    $selectedColumns = Get-PnPField -List $library.Title | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true } | Out-GridView -Title "Select columns to add to $($libraryTitle) -> All Documents View" -OutputMode Multiple
+    $selectedColumns = Get-PnPField -List $library.Title | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true } 
+
+    # Order by DocIcon as per Brandi. 
+    $BrandiViewQuery = "<OrderBy><FieldRef Name='DocIcon' Ascending='TRUE'/><FieldRef Name='LinkFilename' Ascending='TRUE'/></OrderBy>"
+    #Get the Client Context
+    $Context = Get-PnPContext
     $allDocumentsView = Get-PnPView -List $libraryTitle -Identity "All Documents" -Includes ViewType, ViewFields, Aggregations, Paged, ViewQuery, RowLimit
+    $allDocumentsView.ViewQuery = $BrandiViewQuery
+    $allDocumentsView.Update()
+    $Context.ExecuteQuery()
     $fieldArray = @()
 
     foreach ($column in $allDocumentsView.ViewFields) {
-        $fieldArray += $column    
+        $fieldArray += $column
     }
 
     foreach ($column in $selectedColumns) {
-        $fieldArray += $column.InternalName
+        if ($fieldArray -notcontains $column.InternalName) {
+            $fieldArray += $column.InternalName
+        }
     }
 
     Set-PnPView -List $libraryTitle -Identity "All Documents" -Fields $fieldArray    
@@ -86,7 +96,6 @@ Function Create-GroupByTwoColumnView {
     )
 
     $newViewName = "Group by $($fieldOneName) & $($fieldTwoName)"
-    Write-Host "`n========================================================="
     Write-Host "Attempting to create a $($newViewName) for $($libraryTitle)"
     # If topicField is null we cannot create the view.
     $firstField = Get-PnPField -Identity $fieldOneName -List $libraryTitle -ErrorAction SilentlyContinue
@@ -149,25 +158,25 @@ Connect-PnPOnline -Url $selectedSite.Url -Interactive
 # $context = Get-PnPContext
 
 #Get all document libraries - Exclude Hidden Libraries
-$DocumentLibraries = Get-PnPList | Where-Object { $_.BaseTemplate -eq 101 -and $_.Hidden -eq $false } #Or $_.BaseType -eq "DocumentLibrary"
+$DocumentLibraries = Get-PnPList | Where-Object { $_.BaseTemplate -eq 101 -and $_.Hidden -eq $false -and $_.Title -ne "Form Templates" -and $_.Title -ne "Site Assets" -and $_.Title -ne "Style Library" } #Or $_.BaseType -eq "DocumentLibrary"
 
 $selectedLibraries = $DocumentLibraries | Out-GridView -Title "Select Libraries" -OutputMode Multiple
 
 # Get a list of all metadata columns from library.
 foreach ($library in $selectedLibraries) {
+    Write-Host "`n===============================================================" -ForegroundColor Cyan
     Write-Host "Library -> $($library.Title)"
 
     Update-AllDocumentsViewColumns -libraryTitle $library.Title
 
     Create-CustomChoiceViews -libraryTitle $library.Title
 
-    Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Topic"
-    Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Year"
-    Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Status"
-    Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Document Type"
-    Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Division"
-    Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Department"
-    Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Location"
+    # We want to create a group by view for each of these columns.
+    $customColumns = Get-PnPField -List $library.Title | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true } 
+    foreach ($column in $customColumns) {
+        Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName $column.Title
+    }
+
 
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Topic" -fieldTwoName "Year"
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Year" -fieldTwoName "Topic"
