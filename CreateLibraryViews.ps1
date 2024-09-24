@@ -2,7 +2,7 @@ Function Update-AllDocumentsViewColumns {
     param(
         [string]$libraryTitle
     )
-    $selectedColumns = Get-PnPField -List $library.Title | Out-GridView -Title "Select columns to add to $($libraryTitle) -> All Documents View" -OutputMode Multiple
+    $selectedColumns = Get-PnPField -List $library.Title | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true } | Out-GridView -Title "Select columns to add to $($libraryTitle) -> All Documents View" -OutputMode Multiple
     $allDocumentsView = Get-PnPView -List $libraryTitle -Identity "All Documents" -Includes ViewType, ViewFields, Aggregations, Paged, ViewQuery, RowLimit
     $fieldArray = @()
 
@@ -28,7 +28,6 @@ Function Create-CustomChoiceViews {
         Create-GroupByOneColumnView -libraryTitle $libraryTitle -fieldName $field.Title
     }
 }
-
 
 Function Create-GroupByOneColumnView {
     param(
@@ -127,11 +126,11 @@ Function Create-GroupByTwoColumnView {
                 Write-Host "$($newViewName) View has been created!" -ForegroundColor Green
             }
             else {
-                Write-Host "ERROR! Year field not found in $($libraryTitle) library!" -ForegroundColor Red
+                Write-Host "ERROR! $($fieldTwoName) field not found in $($libraryTitle) library!" -ForegroundColor Red
             }
         }
         else {
-            Write-Host "ERROR! Topic field not found in $($libraryTitle) library!" -ForegroundColor Red
+            Write-Host "ERROR! $($fieldOneName) field not found in $($libraryTitle) library!" -ForegroundColor Red
         }
     }
 }
@@ -166,6 +165,13 @@ foreach ($library in $selectedLibraries) {
     Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Year"
     Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Status"
     Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Document Type"
+    Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Division"
+    Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Department"
+    Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName "Location"
 
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Topic" -fieldTwoName "Year"
+    Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Year" -fieldTwoName "Topic"
+    Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Document Type" -fieldTwoName "Topic"
+    Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Topic" -fieldTwoName "Document Type"
+    
 }
