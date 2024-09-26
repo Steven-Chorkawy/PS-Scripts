@@ -1,3 +1,20 @@
+<#
+.SYNOPSIS
+Daisplay all custom metadata columns on the All Documents view.
+
+.DESCRIPTION
+1. Sort by DocIcon, then by File Name.
+2. Add all custom metadata columns to the All Documents view.
+
+.PARAMETER libraryTitle
+Display name of the SharePoint library
+
+.EXAMPLE
+Update-AllDocumentsViewColumns -libraryTitle "My Library"
+
+.NOTES
+General notes
+#>
 Function Update-AllDocumentsViewColumns {
     param(
         [string]$libraryTitle
@@ -27,6 +44,22 @@ Function Update-AllDocumentsViewColumns {
     Set-PnPView -List $libraryTitle -Identity "All Documents" -Fields $fieldArray    
 }
 
+<#
+.SYNOPSIS
+For each Choice field in a library create a view that groups by that field.
+
+.DESCRIPTION
+For each Choice field in a library create a view that groups by that field.
+
+.PARAMETER libraryTitle
+Display name of the SharePoint library.
+
+.EXAMPLE
+Create-CustomChoiceViews -libraryTitle "My Library"
+
+.NOTES
+General notes
+#>
 Function Create-CustomChoiceViews {
     param(
         [string]$libraryTitle
@@ -39,6 +72,25 @@ Function Create-CustomChoiceViews {
     }
 }
 
+<#
+.SYNOPSIS
+Create a view that groups by one columns.
+
+.DESCRIPTION
+Create a view that groups by one columns.
+
+.PARAMETER libraryTitle
+Display name of the SharePoint library.
+
+.PARAMETER fieldName
+Display name of the column used to group by.
+
+.EXAMPLE
+Create-GroupByOneColumnView -libraryTitle "My Title" -fieldName "My Column"
+
+.NOTES
+General notes
+#>
 Function Create-GroupByOneColumnView {
     param(
         [string]$libraryTitle,
