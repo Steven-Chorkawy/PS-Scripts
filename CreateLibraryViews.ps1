@@ -237,7 +237,6 @@ $selectedSite = $sites | Out-GridView -Title "Select site URL" -OutputMode Singl
 
 # Connect to selected site
 Connect-PnPOnline -Url $selectedSite.Url -Interactive
-# $context = Get-PnPContext
 
 #Get all document libraries - Exclude Hidden Libraries
 $DocumentLibraries = Get-PnPList | Where-Object { $_.BaseTemplate -eq 101 -and $_.Hidden -eq $false -and $_.Title -ne "Form Templates" -and $_.Title -ne "Site Assets" -and $_.Title -ne "Style Library" } #Or $_.BaseType -eq "DocumentLibrary"
