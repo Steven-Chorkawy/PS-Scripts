@@ -221,6 +221,11 @@ Function Create-GroupByTwoColumnView {
     }
 }
 
+<#
+#
+#   START OF SCRIPT.
+#
+#>
 Clear-Host
 
 # Connect to SharePoint tenant and retrieve list of sites
@@ -262,3 +267,8 @@ foreach ($library in $selectedLibraries) {
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Document Type" -fieldTwoName "Topic"
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Topic" -fieldTwoName "Document Type"
 }
+<#
+#
+#   END OF SCRIPT.
+#
+#>
