@@ -29,17 +29,20 @@ Function Update-AllDocumentsViewColumns {
     $allDocumentsView.ViewQuery = $BrandiViewQuery
     $allDocumentsView.Update()
     $Context.ExecuteQuery()
-    $fieldArray = @()
 
-    foreach ($column in $allDocumentsView.ViewFields) {
-        $fieldArray += $column
-    }
+    # The first two columns in the view will always be file type and file name.
+    $fieldArray = @("DocIcon", "LinkFilename")
 
+    # The columns will be any custom columns.
     foreach ($column in $selectedColumns) {
         if ($fieldArray -notcontains $column.InternalName) {
             $fieldArray += $column.InternalName
         }
     }
+
+    # The last two columns will always be Modified and Modified By
+    $fieldArray += "Modified"
+    $fieldArray += "Editor"
 
     Set-PnPView -List $libraryTitle -Identity "All Documents" -Fields $fieldArray    
 }
