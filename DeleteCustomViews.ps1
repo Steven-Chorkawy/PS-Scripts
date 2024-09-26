@@ -25,7 +25,7 @@ foreach ($library in $selectedLibraries) {
     foreach ($view in $allViews) {
         if ($view.Title -ne "All Documents" -and $view.BaseViewId -eq "1") {
             Write-Host "Attempting to remove $($library.Title) > $($view.Title)."
-            # This will prompt the user before deleting the view.
+            # Remove the -Force flag to prompt the user before deleting a view.
             Remove-PnPView -List $library.Title -Identity $view.Title -Force
             Write-Host "$($library.Title) > $($view.Title) has been removed."
         }
