@@ -88,6 +88,28 @@ Function Create-GroupByOneColumnView {
     }
 }
 
+<#
+.SYNOPSIS
+Create a view that groups by two columns.
+
+.DESCRIPTION
+Create a view that groups by two columns.
+
+.PARAMETER libraryTitle
+Display name of a SharePoint library.
+
+.PARAMETER fieldOneName
+Display name of the column used to group by first.
+
+.PARAMETER fieldTwoName
+Display name of the column used to group by second.
+
+.EXAMPLE
+Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Document Type" -fieldTwoName "Topic"
+
+.NOTES
+General notes
+#>
 Function Create-GroupByTwoColumnView {
     param(
         [string]$libraryTitle,
@@ -172,15 +194,16 @@ foreach ($library in $selectedLibraries) {
     Create-CustomChoiceViews -libraryTitle $library.Title
 
     # We want to create a group by view for each of these columns.
+    # Filtering for "$_.Hidden -eq $false -and $_.CanBeDeleted -eq $true" seems to return custom fields only.  
+    #This query might need to be updated in the future.
     $customColumns = Get-PnPField -List $library.Title | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true } 
     foreach ($column in $customColumns) {
         Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName $column.Title
     }
 
-
+    # Always try to create these 2x group by views.
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Topic" -fieldTwoName "Year"
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Year" -fieldTwoName "Topic"
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Document Type" -fieldTwoName "Topic"
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Topic" -fieldTwoName "Document Type"
-    
 }
