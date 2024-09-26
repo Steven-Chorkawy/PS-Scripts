@@ -117,7 +117,7 @@ Function Create-GroupByOneColumnView {
             Write-Host "$($fieldName) Field Found..." -ForegroundColor Green
             # Update the view properties of the All Documents view.
             $allDocumentsView.ViewFields.add($fieldName)
-            $allDocumentsView.ViewQuery = "$($allDocumentsView.ViewQuery)<GroupBy Collapse='TRUE'  GroupLimit='30'><FieldRef Name='$($newField.InternalName)' Ascending='TRUE' /></GroupBy>"
+            $allDocumentsView.ViewQuery = "$($allDocumentsView.ViewQuery)<GroupBy Collapse='TRUE' GroupLimit='30'><FieldRef Name='$($newField.InternalName)' Ascending='TRUE' /></GroupBy>"
 
             #Get Properties of the source View
             $ViewProperties = @{
