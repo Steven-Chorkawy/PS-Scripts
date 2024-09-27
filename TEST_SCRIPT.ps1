@@ -11,8 +11,7 @@ $library = Get-PnPList -Identity $listName -Includes Views, ContentTypes, Title,
 $contentTypes = $library.ContentTypes
 
 $ct = $contentTypes | Where-Object { $_.Name -eq "Document Set" }
-Set-PnPView -List $listName -Identity $viewName -Values @{AssociatedContentTypeId = $ct.Id.ToString(); ContentTypeId = $ct.Id; DefaultViewForContentType = $true }
-$Context.ExecuteQuery()
+Set-PnPView -List $listName -Identity $viewName -Values @{JSLink = "hierarchytaskslist.js|customrendering.js"; AssociatedContentTypeId = $ct.Id.ToString(); ContentTypeId = $ct.Id; DefaultViewForContentType = $true }
 
 $views = $library.Views | Where-Object { $_.BaseViewId -eq "1" }
 Write-Host "The End."
