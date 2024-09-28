@@ -30,6 +30,8 @@ foreach ($row in $excelRows) {
     #! This creates content types from a parent but it does not include any columns yet.
     Add-PnPContentType -Name $row.Document_ContentTypeName -Group "Custom Content Types" -ParentContentType $document_ParentContentType
     Add-PnPContentType -Name $row.DocumentSet_ContentTypeName -Group "Custom Content Types" -ParentContentType $documentSet_ParentContentType
+
+    # TODO: Next step is to add columns to the content types.
 }
 
 Write-Host "Site Content Types"
