@@ -11,8 +11,6 @@ function MyConnect {
     Write-Host "`n`n" -ForegroundColor DarkMagenta
     Write-Host "Connecting to $($Url)" -ForegroundColor DarkMagenta
     Connect-PnPOnline -Url $Url -Interactive -ReturnConnection
-    
-    
 }
 
 function CreateLibraries {
