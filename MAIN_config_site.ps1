@@ -1,0 +1,3 @@
+Clear-Host
+Write-Host "STARTING MAIN_CONFIG_SITE"
+Write-Host "ENDING MAIN_CONFIG_SITE"
