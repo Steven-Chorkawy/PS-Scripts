@@ -263,6 +263,8 @@ foreach ($library in $selectedLibraries) {
     # Always try to create these 2x group by views.
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Topic" -fieldTwoName "Year"
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Year" -fieldTwoName "Topic"
+    Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Year" -fieldTwoName "Month"
+    Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Month" -fieldTwoName "Year"
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Document Type" -fieldTwoName "Topic"
     Create-GroupByTwoColumnView -libraryTitle $library.Title -fieldOneName "Topic" -fieldTwoName "Document Type"
 }
