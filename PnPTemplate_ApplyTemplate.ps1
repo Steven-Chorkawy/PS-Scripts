@@ -6,20 +6,20 @@ Connect-PnPOnline -url $siteUrl -ClientId $PnPID -Interactive
 Invoke-PnPSiteTemplate -Path $Path -ClearNavigation
 
 # remove document content type
-        $Libraries = Get-PnPList | Where-Object {
-            $_.Hidden -eq $false -and
-            $_.Title -notlike "*Site Assets*" -and
-            $_.Title -notlike "*Site Pages*" -and   
-            $_.Title -ne "Documents" -and                    
-            $_.Title -notlike "*Style Library*" -and
-            $_.Title -notlike "*Form Templates*"
-        }
+$Libraries = Get-PnPList | Where-Object {
+    $_.Hidden -eq $false -and
+    $_.Title -notlike "*Site Assets*" -and
+    $_.Title -notlike "*Site Pages*" -and   
+    $_.Title -ne "Documents" -and                    
+    $_.Title -notlike "*Style Library*" -and
+    $_.Title -notlike "*Form Templates*"
+}
 
-        # Iterate through the document libraries and add them to the $Results array
-        foreach ($Library in $Libraries) {
+# Iterate through the document libraries and add them to the $Results array
+foreach ($Library in $Libraries) {
 
-	Remove-PnPContentTypeFromList -List $Library -ContentType "Document" -ErrorAction SilentlyContinue
+    Remove-PnPContentTypeFromList -List $Library -ContentType "Document" -ErrorAction SilentlyContinue
 
-	}
+}
 
 
