@@ -4,6 +4,3 @@ $Path = Read-Host "Enter the path where you'd like to save the site template (e.
 
 Connect-PnPOnline -url $siteUrl -ClientId $PnPID -Interactive
 Get-PnPSiteTemplate -out $Path -IncludeAllTermGroups -ExcludeHandlers SiteSecurity
-
-
-
