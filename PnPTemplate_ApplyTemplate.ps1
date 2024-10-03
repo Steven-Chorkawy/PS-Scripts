@@ -17,9 +17,8 @@ $Libraries = Get-PnPList | Where-Object {
 
 # Iterate through the document libraries and add them to the $Results array
 foreach ($Library in $Libraries) {
-
     Remove-PnPContentTypeFromList -List $Library -ContentType "Document" -ErrorAction SilentlyContinue
-
+    # Remove the '_ExtendedDescription' field as well.
 }
 
 
