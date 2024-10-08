@@ -18,8 +18,6 @@ $Libraries = Get-PnPList | Where-Object {
 
 # Iterate through the document libraries and add them to the $Results array
 foreach ($Library in $Libraries) {
-    Write-Host "`nUpdating '$($Library.Title)'..."
-
     Remove-PnPContentTypeFromList -List $Library -ContentType "Document" -ErrorAction SilentlyContinue
 
     # Delete this field because Document Sets will have their own description field.
