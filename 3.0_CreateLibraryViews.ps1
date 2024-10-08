@@ -19,7 +19,7 @@ Function Update-AllDocumentsViewColumns {
     param(
         [string]$libraryTitle
     )
-    $selectedColumns = Get-PnPField -List $library.Title | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true } 
+    $selectedColumns = Get-PnPField -List $library.Title | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true -and $_.ReadOnlyField -eq $false -and $_.InternalName -ne "_ExtendedDescription" } 
 
     # Order by DocIcon as per Brandi. 
     $BrandiViewQuery = "<OrderBy><FieldRef Name='DocIcon' Ascending='TRUE'/><FieldRef Name='LinkFilename' Ascending='TRUE'/></OrderBy>"
@@ -255,7 +255,7 @@ foreach ($library in $selectedLibraries) {
     # We want to create a group by view for each of these columns.
     # Filtering for "$_.Hidden -eq $false -and $_.CanBeDeleted -eq $true" seems to return custom fields only.  
     #This query might need to be updated in the future.
-    $customColumns = Get-PnPField -List $library.Title | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true } 
+    $customColumns = Get-PnPField -List $library.Title | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true -and $_.ReadOnlyField -eq $false -and $_.InternalName -ne "DocumentSetDescription" -and $_.InternalName -ne "_ExtendedDescription" } 
     foreach ($column in $customColumns) {
         Create-GroupByOneColumnView -libraryTitle $library.Title -fieldName $column.Title
     }

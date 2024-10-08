@@ -16,16 +16,20 @@ $Libraries = Get-PnPList | Where-Object {
     $_.Title -notlike "*Form Templates*"
 }
 
-$clientContext = Get-PnPContext
-
 # Iterate through the document libraries and add them to the $Results array
 foreach ($Library in $Libraries) {
+    Write-Host "Configing $($Library.Title)..."
+
     Remove-PnPContentTypeFromList -List $Library -ContentType "Document" -ErrorAction SilentlyContinue
     # Remove the '_ExtendedDescription' field as well.
     
-    # ! This is required because Document Set forms won't work for a few hours without this. 
-    $targetContentType = Get-PnPContentType -List $Library | Where-Object { $_.Name -like "*Case" }
-    $targetContentType.NewFormUrl = "_layouts/15/NewDocSet.aspx"
-    $targetContentType.Update(1)
-    $clientContext.ExecuteQuery()
+    # Force Document Sets to use the modern form.
+    $docSetCT = Get-PnPContentType -List $Library | Where-Object { $_.Name -like "*Case" }
+    # Nulling this out makes Document Sets use the modern form.
+    # Source: https://pnp.github.io/script-samples/spo-document-sets-modern-new-form/README.html?tabs=pnpps
+    $docSetCT.NewFormClientSideComponentId = $null
+    $docSetCT.Update($false)
 }
+
+# Required to force document sets to update.
+Invoke-PnPQuery
