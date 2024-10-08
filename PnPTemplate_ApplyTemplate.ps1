@@ -18,10 +18,12 @@ $Libraries = Get-PnPList | Where-Object {
 
 # Iterate through the document libraries and add them to the $Results array
 foreach ($Library in $Libraries) {
-    Write-Host "Updating '$($Library.Title)'..."
+    Write-Host "`nUpdating '$($Library.Title)'..."
 
     Remove-PnPContentTypeFromList -List $Library -ContentType "Document" -ErrorAction SilentlyContinue
-    # Remove the '_ExtendedDescription' field as well.
+
+    # Delete this field because Document Sets will have their own description field.
+    Remove-PnPField -List $Library -Identity "_ExtendedDescription" -Force
     
     # Force Document Sets to use the modern form.
     $docSetCT = Get-PnPContentType -List $Library | Where-Object { $_.Name -like "*Case" }
