@@ -81,25 +81,25 @@ Function CreateMetadataColumns {
     switch ($Column) {
         "Topic" {
             Add-PnPField -Type Text -InternalName "Topic" -DisplayName "Topic" -Group "Custom Columns"
-            Write-Host "'Topic' has been created" -ForegroundColor Magenta
+            Write-Host "`t'Topic' has been created" 
         }
         "Year" {
             Add-PnPField -Type Text -InternalName "Year" -DisplayName "Year" -Group "Custom Columns"
             Set-PnPField -Identity "Year" -Values @{ DefaultFormula = "=CONCATENATE(YEAR(Today))" }
-            Write-Host "'Year' has been created" -ForegroundColor Magenta
+            Write-Host "`t'Year' has been created"
         }
         "Document Type" {
             Add-PnPField -Type Choice -InternalName "DocumentType" -DisplayName "Document Type" -Group "Custom Columns" -Choices "Choice #1", "Choice #2", "Choice #3"
-            Write-Host "'Document Type' has been created" -ForegroundColor Magenta
+            Write-Host "`t'Document Type' has been created"
         }
         "Month" {
             Add-PnPField -Type Choice -InternalName "Month" -DisplayName "Month" -Group "Custom Columns" -Choices "01-Jan", "02-Feb", "03-Mar", "04-Apr", "05-May", "06-Jun", "07-Jul", "08-Aug", "09-Sep", "10-Oct", "11-Nov", "12-Dec"
-            Write-Host "'Month' has been created" -ForegroundColor Magenta
+            Write-Host "`t'Month' has been created"
         }
         "Department" {
             # Create a Department field with a Manged Metadata type.
             Add-PnPTaxonomyField -DisplayName "Department" -InternalName "MM_Department" -TermSetPath "MOC Org|Department" -Group "Custom Columns"
-            Write-Host "'Department' has been created" -ForegroundColor Magenta
+            Write-Host "`t'Department' has been created"
         }
         Default {
             Write-Host "`tPlease create column '$($Column)'" -ForegroundColor Red
@@ -198,7 +198,6 @@ Function Create-CustomChoiceViews {
         [string]$libraryTitle
     )
 
-    Write-Host "Getting Choice fields for $($libraryTitle)"
     $fields = Get-PnPField -List $libraryDisplayName | Where-Object { $_.TypeAsString -eq "Choice" }
     foreach ($field in $fields) {
         Create-GroupByOneColumnView -libraryTitle $libraryTitle -fieldName $field.Title
@@ -238,7 +237,7 @@ Function Create-GroupByOneColumnView {
     $allDocumentsView = Get-PnPView -List $libraryTitle -Identity "All Documents" -Includes ViewType, ViewFields, Aggregations, Paged, ViewQuery, RowLimit
 
     If ($newView) {       
-        Write-Host "$($newViewName) already exists in $($libraryTitle)... Skipping this step." -ForegroundColor Yellow
+        Write-Host "`t$($newViewName) already exists in $($libraryTitle)... Skipping this step." -ForegroundColor Yellow
     }
     else {
         # View does not exist.  Create proceed to create the view.
@@ -261,10 +260,10 @@ Function Create-GroupByOneColumnView {
                 "Aggregations" = $allDocumentsView.Aggregations
             }
             Add-PnPView @ViewProperties | Out-Null
-            Write-Host "$($newViewName) View has been created!" -ForegroundColor Green
+            Write-Host "`t$($newViewName) View has been created!" -ForegroundColor Green
         }
         else {
-            Write-Host "ERROR! $($fieldName) field not found in $($libraryTitle) library!" -ForegroundColor Red
+            Write-Host "`tWarning! $($fieldName) field not found in $($libraryTitle) library!" -ForegroundColor Red
             # All checks are good.  Create the view.
         }
     }
@@ -300,7 +299,6 @@ Function Create-GroupByTwoColumnView {
     )
 
     $newViewName = "Group by $($fieldOneName) & $($fieldTwoName)"
-    Write-Host "Attempting to create a $($newViewName) for $($libraryTitle)"
     # If topicField is null we cannot create the view.
     $firstField = Get-PnPField -Identity $fieldOneName -List $libraryTitle -ErrorAction SilentlyContinue
     $secondField = Get-PnPField -Identity $fieldTwoName -List $libraryTitle -ErrorAction SilentlyContinue
@@ -310,14 +308,12 @@ Function Create-GroupByTwoColumnView {
     $allDocumentsView = Get-PnPView -List $libraryTitle -Identity "All Documents" -Includes ViewType, ViewFields, Aggregations, Paged, ViewQuery, RowLimit
 
     If ($newView) {       
-        Write-Host "$($newViewName) already exists in $($libraryTitle)... Skipping this step." -ForegroundColor Yellow
+        Write-Host "`t$($newViewName) already exists in $($libraryTitle)... Skipping this step." -ForegroundColor Yellow
     }
     else {
         # View does not exist.  Create proceed to create the view.
         If ($firstField) {
-            Write-Host "$($fieldOneName) Field Found..." -ForegroundColor Green
             If ($secondField) {
-                Write-Host "$($fieldTwoName) Field Found..." -ForegroundColor Green
                 # Update the view properties of the All Documents view.
                 $allDocumentsView.ViewQuery = "$($allDocumentsView.ViewQuery)<GroupBy Collapse='TRUE'  GroupLimit='30'><FieldRef Name='$($firstField.InternalName)' /> <FieldRef Name='$($secondField.InternalName)' /></GroupBy>"
 
@@ -336,14 +332,14 @@ Function Create-GroupByTwoColumnView {
                 }
 
                 Add-PnPView @ViewProperties | Out-Null
-                Write-Host "$($newViewName) View has been created!" -ForegroundColor Green
+                Write-Host "`t$($newViewName) View has been created!" -ForegroundColor Green
             }
             else {
-                Write-Host "Warning! $($fieldTwoName) field not found in $($libraryTitle) library!" -ForegroundColor Red
+                Write-Host "`tWarning! $($fieldTwoName) field not found in $($libraryTitle) library!" -ForegroundColor Yellow
             }
         }
         else {
-            Write-Host "Warning! $($fieldOneName) field not found in $($libraryTitle) library!" -ForegroundColor Yellow
+            Write-Host "`tWarning! $($fieldOneName) field not found in $($libraryTitle) library!" -ForegroundColor Yellow
         }
     }
 }
@@ -390,7 +386,7 @@ foreach ($row in $excelRows) {
         $DEPARTMENT_COLUMN = Get-PnPField -Identity "ol_Department" 
         if ($DEPARTMENT_COLUMN.TypeAsString -eq "Text") {
             Remove-PnPField -Identity "ol_Department" -Force     # Delete Department text field.
-            CreateMetadataColumns -Column "Department"  # Create Department Managed Metadata field.    
+            CreateMetadataColumns -Column "Department" | Out-Null  # Create Department Managed Metadata field.    
         }
     }
     catch {
@@ -412,8 +408,6 @@ foreach ($row in $excelRows) {
     }
 
     if ($ALL_METADATA_COLUMNS_FOUND) {
-        # Create Content Types.
-        WriteNewTitle -Title "Creating Content Types..."
         $documentSet_ParentContentType = ""
         $document_ParentContentType = ""
     
@@ -471,22 +465,33 @@ foreach ($row in $excelRows) {
         WriteNewTitle -Title "Creating '$($row.Library_DisplayName)' Library..."
         $libraryUrl = $row.Library_Name
         $libraryDisplayName = $row.Library_DisplayName
+  
         # Create new library with settings
         New-PnPList -Title $libraryDisplayName -Url $libraryUrl -Template DocumentLibrary -EnableVersioning -OnQuickLaunch -EnableContentTypes | Out-Null
+        Write-Host "`tLibrary Created."
+  
         # Set MajorVersion limit to 100
         Set-PnPList -Identity $libraryUrl -MajorVersions 100 -EnableFolderCreation $false | Out-Null
+        Write-Host "`tLibrary Updated."
+  
         # Add Document Set Content Type
         Add-PnPContentTypeToList -List $libraryUrl -ContentType $row.DocumentSet_ContentTypeName
+  
         # Add Document Content Type
         Add-PnPContentTypeToList -List $libraryUrl -ContentType $row.Document_ContentTypeName
+        Write-Host "`tContent Types added."
+  
         # Update the All Documents view to sort by Document Sets first. 
         # https://clarington.freshservice.com/a/tickets/40827?current_tab=details
         Update-AllDocuments-View -SiteURL $row.SiteUrl -LibraryName $libraryDisplayName
+
         # Remove Document and Folder Content Type
         Remove-PnPContentTypeFromList -List $libraryDisplayName -ContentType "Document"
         Remove-PnPContentTypeFromList -List $libraryDisplayName -ContentType "Folder"
+        
         # Remove description field.
         Remove-PnPField -List $libraryUrl -Identity "_ExtendedDescription" -Force
+        
         WriteNewTitle -Title "Creating Views for $($row.SiteUrl) > $($row.Library_DisplayName)"
         Update-AllDocumentsViewColumns -libraryTitle $libraryDisplayName
         Create-CustomChoiceViews -libraryTitle $libraryDisplayName
@@ -494,6 +499,7 @@ foreach ($row in $excelRows) {
         foreach ($column in $customColumns) {
             Create-GroupByOneColumnView -libraryTitle $libraryDisplayName -fieldName $column.Title
         }
+        
         # Always try to create these 2x group by views.
         Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Topic" -fieldTwoName "Year"
         Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Year" -fieldTwoName "Topic"
