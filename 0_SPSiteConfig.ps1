@@ -1,15 +1,26 @@
+$ALL_METADATA_COLUMNS_FOUND = $true
+$DOCUMENT_SET_FEATURE_GUID = "3bae86a2-776d-499d-9db8-fa4cdc7884f8" # Hard coded value from SharePoint.
+$DOCUMENT_SET_FEATURE_NAME = "DocumentSet"
+
 Function MyConnect {
     param (
         [string]$Url
     )
-    $getConn = Get-PnPWeb
+    $getConn = Get-PnPWeb | Out-Null
     if ($getConn.Url -eq $Url) {
-        Write-Host "Skipping connection" -ForegroundColor DarkMagenta
         return
     }
-    Write-Host "`n`n" -ForegroundColor DarkMagenta
-    Write-Host "Connecting to $($Url)" -ForegroundColor DarkMagenta
     Connect-PnPOnline -Url $Url -Interactive
+    Write-Host "Connecting to $($Url)" -ForegroundColor DarkMagenta
+}
+
+Function WriteNewTitle {
+    param (
+        [string]$Title
+    )
+    Write-Host "`n========================================================================================================" -ForegroundColor Magenta
+    Write-Host $Title -ForegroundColor Magenta
+    Write-Host "========================================================================================================" -ForegroundColor Magenta
 }
 
 Function GetDefaultDocumentContentTypes {
@@ -48,20 +59,53 @@ Function CheckMetadataColumns {
     param (
         [string] $Columns
     )
-    
     $columnArray = ConvertColumnStringToArray -Columns $Columns
     $output = $true
-
     foreach ($column in $columnArray) {
         try {
-            $getFieldResult = Get-PnPField -Identity $column
+            Get-PnPField -Identity $column
         }
         catch {
-            Write-Host "`tFAIL! Could not find '$($column)'!  Please create this column." -ForegroundColor Red
+            Write-Host "Can not find '$($column)'!" -ForegroundColor Red
+            $output = CreateMetadataColumns -Column $column
+        }
+    }
+    return $output
+}
+
+Function CreateMetadataColumns {
+    [OutputType([Boolean])]
+    param(
+        [string] $Column
+    )
+    $output = $true
+    switch ($Column) {
+        "Topic" {
+            Add-PnPField -Type Text -InternalName "Topic" -DisplayName "Topic" -Group "Custom Columns"
+            Write-Host "'Topic' has been created" -ForegroundColor Magenta
+        }
+        "Year" {
+            Add-PnPField -Type Text -InternalName "Year" -DisplayName "Year" -Group "Custom Columns"
+            Set-PnPField -Identity "Year" -Values @{ DefaultFormula = "=CONCATENATE(YEAR(Today))" }
+            Write-Host "'Year' has been created" -ForegroundColor Magenta
+        }
+        "Document Type" {
+            Add-PnPField -Type Choice -InternalName "DocumentType" -DisplayName "Document Type" -Group "Custom Columns" -Choices "Choice #1", "Choice #2", "Choice #3"
+            Write-Host "'Document Type' has been created" -ForegroundColor Magenta
+        }
+        "Month" {
+            Add-PnPField -Type Choice -InternalName "Month" -DisplayName "Month" -Group "Custom Columns" -Choices "01-Jan", "02-Feb", "03-Mar", "04-Apr", "05-May", "06-Jun", "07-Jul", "08-Aug", "09-Sep", "10-Oct", "11-Nov", "12-Dec"
+            Write-Host "'Month' has been created" -ForegroundColor Magenta
+        }
+        "Department" {
+            Add-PnPTaxonomyField -DisplayName "Department" -InternalName "Department" -TermSetPath "MOC Org|Department" -Group "Custom Columns"
+            Write-Host "'Department' has been created" -ForegroundColor Magenta
+        }
+        Default {
+            Write-Host "`tPlease create column '$($Column)'" -ForegroundColor Red
             $output = $false
         }
     }
-
     return $output
 }
 
@@ -84,11 +128,238 @@ Function Update-AllDocuments-View {
     $Context.ExecuteQuery()
 }
 
+<#
+.SYNOPSIS
+Daisplay all custom metadata columns on the All Documents view.
 
+.DESCRIPTION
+1. Sort by DocIcon, then by File Name.
+2. Add all custom metadata columns to the All Documents view.
+
+.PARAMETER libraryTitle
+Display name of the SharePoint library
+
+.EXAMPLE
+Update-AllDocumentsViewColumns -libraryTitle "My Library"
+
+.NOTES
+General notes
+#>
+Function Update-AllDocumentsViewColumns {
+    param(
+        [string]$libraryTitle
+    )
+    $selectedColumns = Get-PnPField -List $libraryDisplayName | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true -and $_.ReadOnlyField -eq $false -and $_.InternalName -ne "_ExtendedDescription" } 
+
+    # Order by DocIcon as per Brandi. 
+    $BrandiViewQuery = "<OrderBy><FieldRef Name='DocIcon' Ascending='TRUE'/><FieldRef Name='LinkFilename' Ascending='TRUE'/></OrderBy>"
+    #Get the Client Context
+    $Context = Get-PnPContext
+    $allDocumentsView = Get-PnPView -List $libraryTitle -Identity "All Documents" -Includes ViewType, ViewFields, Aggregations, Paged, ViewQuery, RowLimit
+    $allDocumentsView.ViewQuery = $BrandiViewQuery
+    $allDocumentsView.Update()
+    $Context.ExecuteQuery()
+
+    # The first two columns in the view will always be file type and file name.
+    $fieldArray = @("DocIcon", "LinkFilename")
+
+    # The columns will be any custom columns.
+    foreach ($column in $selectedColumns) {
+        if ($fieldArray -notcontains $column.InternalName) {
+            $fieldArray += $column.InternalName
+        }
+    }
+
+    # The last two columns will always be Modified and Modified By
+    $fieldArray += "Modified"
+    $fieldArray += "Editor"
+
+    Set-PnPView -List $libraryTitle -Identity "All Documents" -Fields $fieldArray | Out-Null
+}
+
+<#
+.SYNOPSIS
+For each Choice field in a library create a view that groups by that field.
+
+.DESCRIPTION
+For each Choice field in a library create a view that groups by that field.
+
+.PARAMETER libraryTitle
+Display name of the SharePoint library.
+
+.EXAMPLE
+Create-CustomChoiceViews -libraryTitle "My Library"
+
+.NOTES
+General notes
+#>
+Function Create-CustomChoiceViews {
+    param(
+        [string]$libraryTitle
+    )
+
+    Write-Host "Getting Choice fields for $($libraryTitle)"
+    $fields = Get-PnPField -List $libraryDisplayName | Where-Object { $_.TypeAsString -eq "Choice" }
+    foreach ($field in $fields) {
+        Create-GroupByOneColumnView -libraryTitle $libraryTitle -fieldName $field.Title
+    }
+}
+
+<#
+.SYNOPSIS
+Create a view that groups by one columns.
+
+.DESCRIPTION
+Create a view that groups by one columns.
+
+.PARAMETER libraryTitle
+Display name of the SharePoint library.
+
+.PARAMETER fieldName
+Display name of the column used to group by.
+
+.EXAMPLE
+Create-GroupByOneColumnView -libraryTitle "My Title" -fieldName "My Column"
+
+.NOTES
+General notes
+#>
+Function Create-GroupByOneColumnView {
+    param(
+        [string]$libraryTitle,
+        [string]$fieldName
+    )
+
+    $newViewName = "Group by $($fieldName)"
+    Write-Host "Attempting to create a $($newViewName) for $($libraryTitle)"
+    # If topicField is null we cannot create the view.
+    $newField = Get-PnPField -Identity $fieldName -List $libraryTitle -ErrorAction SilentlyContinue
+    # If newView is NOT null the view already exists and we do not need to create another one.
+    $newView = Get-PnPView -Identity $newViewName -List $libraryTitle -ErrorAction SilentlyContinue
+    $allDocumentsView = Get-PnPView -List $libraryTitle -Identity "All Documents" -Includes ViewType, ViewFields, Aggregations, Paged, ViewQuery, RowLimit
+
+    If ($newView) {       
+        Write-Host "$($newViewName) already exists in $($libraryTitle)... Skipping this step." -ForegroundColor Yellow
+    }
+    else {
+        # View does not exist.  Create proceed to create the view.
+        If ($newField) {
+            Write-Host "$($fieldName) Field Found..." -ForegroundColor Green
+            # Update the view properties of the All Documents view.
+            $allDocumentsView.ViewFields.add($fieldName)
+            $allDocumentsView.ViewQuery = "$($allDocumentsView.ViewQuery)<GroupBy Collapse='TRUE' GroupLimit='30'><FieldRef Name='$($newField.InternalName)' Ascending='TRUE' /></GroupBy>"
+
+            #Get Properties of the source View
+            $ViewProperties = @{
+                "List"         = $libraryTitle
+                "Title"        = $newViewName
+                "Paged"        = $allDocumentsView.Paged
+                "Personal"     = $allDocumentsView.PersonalView
+                "Query"        = $allDocumentsView.ViewQuery
+                "RowLimit"     = $allDocumentsView.RowLimit
+                "SetAsDefault" = $false
+                "Fields"       = @($allDocumentsView.ViewFields)
+                "ViewType"     = $allDocumentsView.ViewType
+                "Aggregations" = $allDocumentsView.Aggregations
+            }
+
+            Add-PnPView @ViewProperties | Out-Null
+            Write-Host "$($newViewName) View has been created!" -ForegroundColor Green
+        }
+        else {
+            Write-Host "ERROR! $($fieldName) field not found in $($libraryTitle) library!" -ForegroundColor Red
+            # All checks are good.  Create the view.
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+Create a view that groups by two columns.
+
+.DESCRIPTION
+Create a view that groups by two columns.
+
+.PARAMETER libraryTitle
+Display name of a SharePoint library.
+
+.PARAMETER fieldOneName
+Display name of the column used to group by first.
+
+.PARAMETER fieldTwoName
+Display name of the column used to group by second.
+
+.EXAMPLE
+Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Document Type" -fieldTwoName "Topic"
+
+.NOTES
+General notes
+#>
+Function Create-GroupByTwoColumnView {
+    param(
+        [string]$libraryTitle,
+        [string]$fieldOneName,
+        [string]$fieldTwoName
+    )
+
+    $newViewName = "Group by $($fieldOneName) & $($fieldTwoName)"
+    Write-Host "Attempting to create a $($newViewName) for $($libraryTitle)"
+    # If topicField is null we cannot create the view.
+    $firstField = Get-PnPField -Identity $fieldOneName -List $libraryTitle -ErrorAction SilentlyContinue
+    $secondField = Get-PnPField -Identity $fieldTwoName -List $libraryTitle -ErrorAction SilentlyContinue
+
+    # If newView is NOT null the view already exists and we do not need to create another one.
+    $newView = Get-PnPView -Identity $newViewName -List $libraryTitle -ErrorAction SilentlyContinue
+    $allDocumentsView = Get-PnPView -List $libraryTitle -Identity "All Documents" -Includes ViewType, ViewFields, Aggregations, Paged, ViewQuery, RowLimit
+
+    If ($newView) {       
+        Write-Host "$($newViewName) already exists in $($libraryTitle)... Skipping this step." -ForegroundColor Yellow
+    }
+    else {
+        # View does not exist.  Create proceed to create the view.
+        If ($firstField) {
+            Write-Host "$($fieldOneName) Field Found..." -ForegroundColor Green
+            If ($secondField) {
+                Write-Host "$($fieldTwoName) Field Found..." -ForegroundColor Green
+                # Update the view properties of the All Documents view.
+                $allDocumentsView.ViewQuery = "$($allDocumentsView.ViewQuery)<GroupBy Collapse='TRUE'  GroupLimit='30'><FieldRef Name='$($firstField.InternalName)' /> <FieldRef Name='$($secondField.InternalName)' /></GroupBy>"
+
+                #Get Properties of the source View
+                $ViewProperties = @{
+                    "List"         = $libraryTitle
+                    "Title"        = $newViewName
+                    "Paged"        = $allDocumentsView.Paged
+                    "Personal"     = $allDocumentsView.PersonalView
+                    "Query"        = $allDocumentsView.ViewQuery
+                    "RowLimit"     = $allDocumentsView.RowLimit
+                    "SetAsDefault" = $false
+                    "Fields"       = @($allDocumentsView.ViewFields)
+                    "ViewType"     = $allDocumentsView.ViewType
+                    "Aggregations" = $allDocumentsView.Aggregations
+                }
+
+                Add-PnPView @ViewProperties | Out-Null
+                Write-Host "$($newViewName) View has been created!" -ForegroundColor Green
+            }
+            else {
+                Write-Host "Warning! $($fieldTwoName) field not found in $($libraryTitle) library!" -ForegroundColor Red
+            }
+        }
+        else {
+            Write-Host "Warning! $($fieldOneName) field not found in $($libraryTitle) library!" -ForegroundColor Yellow
+        }
+    }
+}
+
+############################################ * START OF SCRIPT * ############################################
 Clear-Host
 $excelRows = ""
 try {
     $path = Read-Host -Prompt "Enter Path to Excel Template"
+    if ($path -eq "") {
+        Write-Host "No Path Provided... Using Default Testing Path..." -ForegroundColor Yellow
+        $path = "C:\Users\sc13\OneDrive - clarington.net\Desktop\SharePoint Site Config Template.xlsx"
+    }
     $excelRows = Import-Excel -Path $path
 }
 catch {
@@ -97,97 +368,125 @@ catch {
 }
 
 # Create Content Types.
-Write-Host "`n`nCreating Content Types..."
+WriteNewTitle -Title "Creating Content Types..."
 foreach ($row in $excelRows) {
-    Write-Host "`n`nConnecting to $($row.SiteUrl) > $($row.Library_DisplayName)"
+    $ALL_METADATA_COLUMNS_FOUND = $true
     MyConnect -Url $row.SiteUrl
 
-    Write-Host "Validating Metadata Columns..."
+    Write-Host "Checking if Document Set feature is enabled..."
+    $AreDocumentSetsEnabled = Get-PnPFeature -Scope Site | Where-Object { $_.DisplayName -eq $DOCUMENT_SET_FEATURE_NAME -and $_.DefinitionId -eq $DOCUMENT_SET_FEATURE_GUID }
+    if ($null -eq $AreDocumentSetsEnabled) {
+        Write-Host "Enabling Document Set Feature..." -ForegroundColor Green
+        Enable-PnPFeature -Identity $DOCUMENT_SET_FEATURE_GUID -Scope Site
+    }
+
+    WriteNewTitle -Title "Validating Metadata Columns for $($row.SiteUrl) > $($row.Library_DisplayName)"
     $documentColumnsFound = CheckMetadataColumns -Columns $row.Document_Columns
     $documentSetColumnsFound = CheckMetadataColumns -Columns $row.DocumentSet_Columns
 
     if ($documentColumnsFound -eq $false -or $documentSetColumnsFound -eq $false) {
         Write-Host "Some metadata columns cannot be found for $($row.SiteUrl) > $($row.Library_DisplayName)." -ForegroundColor Red
         Write-Host "Skipping Content Type Creation." -ForegroundColor Red
+        $ALL_METADATA_COLUMNS_FOUND = $false
         # This will skip the current interation of the foreach loop.
         continue
     }
 
-    $documentSet_ParentContentType = ""
-    $document_ParentContentType = ""
+    if ($ALL_METADATA_COLUMNS_FOUND) {
+        $documentSet_ParentContentType = ""
+        $document_ParentContentType = ""
     
-    if ($row.Document_ParentContentType -eq "Document" -and $row.DocumentSet_ParentContentType -eq "Document Set") {
-        $output = GetDefaultDocumentContentTypes -DocumentName $row.Document_ParentContentType -DocumentSetName $row.DocumentSet_ParentContentType
-        $document_ParentContentType = $output["Document"]
-        $documentSet_ParentContentType = $output["DocumentSet"]
-    }
-    else {
-        $output = GetEDRMContentTypes -siteURL $row.SiteUrl -DocumentName $row.Document_ParentContentType -DocumentSetName $row.DocumentSet_ParentContentType
-        $document_ParentContentType = $output[1]["Document"]
-        $documentSet_ParentContentType = $output[1]["DocumentSet"]
-    }
-
-    # Try to create the Document and Document Set Content Type and add metadata columns.
-    try {
-        Write-Host "Creating $($row.Document_ContentTypeName) Content Type..."
-        $addDocRes = Add-PnPContentType -Name $row.Document_ContentTypeName -Group "Custom Content Types" -ParentContentType $document_ParentContentType
-        foreach ($column in ConvertColumnStringToArray -Columns $row.Document_Columns) {
-            Write-Host "`tAdding '$($column)' column to '$($row.Document_ContentTypeName)' Content Type."
-            Add-PnPFieldToContentType -ContentType $row.Document_ContentTypeName -Field $column
+        if ($row.Document_ParentContentType -eq "Document" -and $row.DocumentSet_ParentContentType -eq "Document Set") {
+            $output = GetDefaultDocumentContentTypes -DocumentName $row.Document_ParentContentType -DocumentSetName $row.DocumentSet_ParentContentType
+            $document_ParentContentType = $output["Document"]
+            $documentSet_ParentContentType = $output["DocumentSet"]
+        }
+        else {
+            $output = GetEDRMContentTypes -siteURL $row.SiteUrl -DocumentName $row.Document_ParentContentType -DocumentSetName $row.DocumentSet_ParentContentType
+            $document_ParentContentType = $output[1]["Document"]
+            $documentSet_ParentContentType = $output[1]["DocumentSet"]
         }
 
-        # Try to create the Document Set Content Type and add metadata columns.
+        # Try to create the Document and Document Set Content Type and add metadata columns.
         try {
-            Write-Host "Creating $($row.DocumentSet_ContentTypeName) Content Type..."
-            $addDocSetRes = Add-PnPContentType -Name $row.DocumentSet_ContentTypeName -Group "Custom Content Types" -ParentContentType $documentSet_ParentContentType
-            foreach ($column in ConvertColumnStringToArray -Columns $row.DocumentSet_Columns) {
-                Write-Host "`tAdding '$($column)' column to '$($row.DocumentSet_ContentTypeName)' Content Type."
-                Add-PnPFieldToContentType -ContentType $row.DocumentSet_ContentTypeName -Field $column
-                Write-Host "`tAdding '$($row.Document_ContentTypeName)' to $($row.DocumentSet_ContentTypeName)."
-                Add-PnPContentTypeToDocumentSet -ContentType $row.Document_ContentTypeName -DocumentSet $row.DocumentSet_ContentTypeName
-                Write-Host "`tRemoving default 'Document' from $($row.DocumentSet_ContentTypeName)"
-                Remove-PnPContentTypeFromDocumentSet -ContentType "Document" -DocumentSet $row.DocumentSet_ContentTypeName
+            WriteNewTitle -Title "Creating $($row.Document_ContentTypeName) Content Type for $($row.SiteUrl) > $($row.Library_DisplayName)"
+            $addDocRes = Add-PnPContentType -Name $row.Document_ContentTypeName -Group "Custom Content Types" -ParentContentType $document_ParentContentType
+            foreach ($column in ConvertColumnStringToArray -Columns $row.Document_Columns) {
+                Write-Host "`tAdding '$($column)' column to '$($row.Document_ContentTypeName)' Content Type."
+                Add-PnPFieldToContentType -ContentType $row.Document_ContentTypeName -Field $column
+            }
+
+            # Try to create the Document Set Content Type and add metadata columns.
+            try {
+                WriteNewTitle -Title "Creating $($row.DocumentSet_ContentTypeName) Content Type for $($row.SiteUrl) > $($row.Library_DisplayName)"
+                $addDocSetRes = Add-PnPContentType -Name $row.DocumentSet_ContentTypeName -Group "Custom Content Types" -ParentContentType $documentSet_ParentContentType
+                foreach ($column in ConvertColumnStringToArray -Columns $row.DocumentSet_Columns) {
+                    Write-Host "`tAdding '$($column)' column to '$($row.DocumentSet_ContentTypeName)' Content Type."
+                    Add-PnPFieldToContentType -ContentType $row.DocumentSet_ContentTypeName -Field $column
+                    Write-Host "`tAdding '$($row.Document_ContentTypeName)' to $($row.DocumentSet_ContentTypeName)."
+                    Add-PnPContentTypeToDocumentSet -ContentType $row.Document_ContentTypeName -DocumentSet $row.DocumentSet_ContentTypeName
+                    Write-Host "`tRemoving default 'Document' from $($row.DocumentSet_ContentTypeName)"
+                    Remove-PnPContentTypeFromDocumentSet -ContentType "Document" -DocumentSet $row.DocumentSet_ContentTypeName
+                }
+            }
+            catch {
+                Write-Host "Failed to create '$($row.Document_ContentTypeName)' Content Type!" -ForegroundColor Red
+                Write-Host $_
             }
         }
         catch {
             Write-Host "Failed to create '$($row.Document_ContentTypeName)' Content Type!" -ForegroundColor Red
             Write-Host $_
         }
-    }
-    catch {
-        Write-Host "Failed to create '$($row.Document_ContentTypeName)' Content Type!" -ForegroundColor Red
-        Write-Host $_
+
+        # Create Libraries.
+        WriteNewTitle -Title "Creating Libraries..."
+        foreach ($row in $excelRows) {
+            MyConnect -Url $row.SiteUrl
+            $libraryUrl = $row.Library_Name
+            $libraryDisplayName = $row.Library_DisplayName
+            # Create new library with settings
+            New-PnPList -Title $libraryDisplayName -Url $libraryUrl -Template DocumentLibrary -EnableVersioning -OnQuickLaunch -EnableContentTypes
+        
+            # Set MajorVersion limit to 100
+            Set-PnPList -Identity $libraryUrl -MajorVersions 100 -EnableFolderCreation $false
+        
+            # Get library
+            $library = Get-PnPList -Identity $libraryUrl -Includes ContentTypes
+            # Add Document Set Content Type
+            Add-PnPContentTypeToList -List $libraryUrl -ContentType $row.DocumentSet_ContentTypeName
+            # Add Document Content Type
+            Add-PnPContentTypeToList -List $libraryUrl -ContentType $row.Document_ContentTypeName
+        
+            # Update the All Documents view to sort by Document Sets first. 
+            # https://clarington.freshservice.com/a/tickets/40827?current_tab=details
+            Update-AllDocuments-View -SiteURL $row.SiteUrl -LibraryName $libraryDisplayName
+        
+            # Remove Document and Folder Content Type
+            Remove-PnPContentTypeFromList -List $libraryDisplayName -ContentType "Document"
+            Remove-PnPContentTypeFromList -List $libraryDisplayName -ContentType "Folder"
+        
+            # Remove description field.
+            Remove-PnPField -List $libraryUrl -Identity "_ExtendedDescription" -Force
+    
+            WriteNewTitle -Title "Creating Views for $($row.SiteUrl) > $($row.Library_DisplayName)"
+            Update-AllDocumentsViewColumns -libraryTitle $libraryDisplayName
+            Create-CustomChoiceViews -libraryTitle $libraryDisplayName
+            $customColumns = Get-PnPField -List $libraryDisplayName | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true -and $_.ReadOnlyField -eq $false -and $_.InternalName -ne "DocumentSetDescription" -and $_.InternalName -ne "_ExtendedDescription" } 
+            foreach ($column in $customColumns) {
+                Create-GroupByOneColumnView -libraryTitle $libraryDisplayName -fieldName $column.Title
+            }
+            # Always try to create these 2x group by views.
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Topic" -fieldTwoName "Year"
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Year" -fieldTwoName "Topic"
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Year" -fieldTwoName "Month"
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Month" -fieldTwoName "Year"
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Document Type" -fieldTwoName "Topic"
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Topic" -fieldTwoName "Document Type"
+        }
     }
 }
 
-# Create Libraries.
-Write-Host "`n`nCreating Libraries..."
-foreach ($row in $excelRows) {
-    Write-Host "`n`nConnecting to $($row.SiteUrl) > $($row.Library_DisplayName)"
-    MyConnect -Url $row.SiteUrl
-    $libraryUrl = $row.Library_Name
-    $libraryDisplayName = $row.Library_DisplayName
-    # Create new library with settings
-    New-PnPList -Title $libraryDisplayName -Url $libraryUrl -Template DocumentLibrary -EnableVersioning -OnQuickLaunch -EnableContentTypes
-
-    # Set MajorVersion limit to 100
-    Set-PnPList -Identity $libraryUrl -MajorVersions 100 -EnableFolderCreation $false
-
-    # Get library
-    $library = Get-PnPList -Identity $libraryUrl -Includes ContentTypes
-    # Add Document Set Content Type
-    Add-PnPContentTypeToList -List $libraryUrl -ContentType $row.DocumentSet_ContentTypeName
-    # Add Document Content Type
-    Add-PnPContentTypeToList -List $libraryUrl -ContentType $row.Document_ContentTypeName
-
-    # Update the All Documents view to sort by Document Sets first. 
-    # https://clarington.freshservice.com/a/tickets/40827?current_tab=details
-    Update-AllDocuments-View -SiteURL $row.SiteUrl -LibraryName $libraryDisplayName
-
-    # Remove Document and Folder Content Type
-    Remove-PnPContentType -List $libraryUrl -ContentType "Document"
-    Remove-PnPContentType -List $libraryUrl -ContentType "Folder"
-
-    # Remove description field.
-    Remove-PnPField -List $libraryUrl -Identity "_ExtendedDescription" -Force
-}
+WriteNewTitle -Title "Disconnect-PnPOnline"
+Disconnect-PnPOnline
+############################################ * END OF SCRIPT * ############################################
