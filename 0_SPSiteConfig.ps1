@@ -367,8 +367,9 @@ foreach ($row in $excelRows) {
         Write-Host "Invalid row found in excel.  Skipping current row..." -ForegroundColor Yellow
         continue
     }
-    # Reset this variable at the start of each loop.
-    $ALL_METADATA_COLUMNS_FOUND = $true
+    
+    $ALL_METADATA_COLUMNS_FOUND = $true # Reset this variable at the start of each loop.
+    $ALL_CONTENT_TYPES_FOUND = $true # Reset this variable at the start of each loop.
 
     # Attempt to connect to the current site URL.
     MyConnect -Url $row.SiteUrl
@@ -411,17 +412,24 @@ foreach ($row in $excelRows) {
         $documentSet_ParentContentType = ""
         $document_ParentContentType = ""
     
-        if ($row.Document_ParentContentType -eq "Document" -and $row.DocumentSet_ParentContentType -eq "Document Set") {
-            # This handles default parent content types.
-            $output = GetDefaultDocumentContentTypes -DocumentName $row.Document_ParentContentType -DocumentSetName $row.DocumentSet_ParentContentType
-            $document_ParentContentType = $output["Document"]
-            $documentSet_ParentContentType = $output["DocumentSet"]
+        try {
+            if ($row.Document_ParentContentType -eq "Document" -and $row.DocumentSet_ParentContentType -eq "Document Set") {
+                # This handles default parent content types.
+                $output = GetDefaultDocumentContentTypes -DocumentName $row.Document_ParentContentType -DocumentSetName $row.DocumentSet_ParentContentType
+                $document_ParentContentType = $output["Document"]
+                $documentSet_ParentContentType = $output["DocumentSet"]
+            }
+            else {
+                # This handles custom parent content types.
+                $output = GetEDRMContentTypes -siteURL $row.SiteUrl -DocumentName $row.Document_ParentContentType -DocumentSetName $row.DocumentSet_ParentContentType
+                $document_ParentContentType = $output[1]["Document"]
+                $documentSet_ParentContentType = $output[1]["DocumentSet"]
+            }
         }
-        else {
-            # This handles custom parent content types.
-            $output = GetEDRMContentTypes -siteURL $row.SiteUrl -DocumentName $row.Document_ParentContentType -DocumentSetName $row.DocumentSet_ParentContentType
-            $document_ParentContentType = $output[1]["Document"]
-            $documentSet_ParentContentType = $output[1]["DocumentSet"]
+        catch {
+            Write-Host "Failed to get parent Content Types" -ForegroundColor Red
+            Write-Host $_
+            $ALL_CONTENT_TYPES_FOUND = $false
         }
 
         # Try to create the Document and Document Set Content Type and add metadata columns.
@@ -459,54 +467,60 @@ foreach ($row in $excelRows) {
         catch {
             Write-Host "Failed to create '$($row.Document_ContentTypeName)' Content Type!" -ForegroundColor Red
             Write-Host $_
+            $ALL_CONTENT_TYPES_FOUND = $false
         }
 
-        # Create Libraries.
-        WriteNewTitle -Title "Creating '$($row.Library_DisplayName)' Library..."
-        $libraryUrl = $row.Library_Name
-        $libraryDisplayName = $row.Library_DisplayName
-  
-        # Create new library with settings
-        New-PnPList -Title $libraryDisplayName -Url $libraryUrl -Template DocumentLibrary -EnableVersioning -OnQuickLaunch -EnableContentTypes | Out-Null
-        Write-Host "`tLibrary Created."
-  
-        # Set MajorVersion limit to 100
-        Set-PnPList -Identity $libraryUrl -MajorVersions 100 -EnableFolderCreation $false | Out-Null
-        Write-Host "`tLibrary Updated."
-  
-        # Add Document Set Content Type
-        Add-PnPContentTypeToList -List $libraryUrl -ContentType $row.DocumentSet_ContentTypeName
-  
-        # Add Document Content Type
-        Add-PnPContentTypeToList -List $libraryUrl -ContentType $row.Document_ContentTypeName
-        Write-Host "`tContent Types added."
-  
-        # Update the All Documents view to sort by Document Sets first. 
-        # https://clarington.freshservice.com/a/tickets/40827?current_tab=details
-        Update-AllDocuments-View -SiteURL $row.SiteUrl -LibraryName $libraryDisplayName
+        if($ALL_CONTENT_TYPES_FOUND) {
+            # Create Libraries.
+            WriteNewTitle -Title "Creating '$($row.Library_DisplayName)' Library..."
+            $libraryUrl = $row.Library_Name
+            $libraryDisplayName = $row.Library_DisplayName
+    
+            # Create new library with settings
+            New-PnPList -Title $libraryDisplayName -Url $libraryUrl -Template DocumentLibrary -EnableVersioning -OnQuickLaunch -EnableContentTypes | Out-Null
+            Write-Host "`tLibrary Created."
+    
+            # Set MajorVersion limit to 100
+            Set-PnPList -Identity $libraryUrl -MajorVersions 100 -EnableFolderCreation $false | Out-Null
+            Write-Host "`tLibrary Updated."
+    
+            # Add Document Set Content Type
+            Add-PnPContentTypeToList -List $libraryUrl -ContentType $row.DocumentSet_ContentTypeName
+    
+            # Add Document Content Type
+            Add-PnPContentTypeToList -List $libraryUrl -ContentType $row.Document_ContentTypeName
+            Write-Host "`tContent Types added."
+    
+            # Update the All Documents view to sort by Document Sets first. 
+            # https://clarington.freshservice.com/a/tickets/40827?current_tab=details
+            Update-AllDocuments-View -SiteURL $row.SiteUrl -LibraryName $libraryDisplayName
 
-        # Remove Document and Folder Content Type
-        Remove-PnPContentTypeFromList -List $libraryDisplayName -ContentType "Document"
-        Remove-PnPContentTypeFromList -List $libraryDisplayName -ContentType "Folder"
-        
-        # Remove description field.
-        Remove-PnPField -List $libraryUrl -Identity "_ExtendedDescription" -Force
-        
-        WriteNewTitle -Title "Creating Views for $($row.SiteUrl) > $($row.Library_DisplayName)"
-        Update-AllDocumentsViewColumns -libraryTitle $libraryDisplayName
-        Create-CustomChoiceViews -libraryTitle $libraryDisplayName
-        $customColumns = Get-PnPField -List $libraryDisplayName | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true -and $_.ReadOnlyField -eq $false -and $_.InternalName -ne "DocumentSetDescription" -and $_.InternalName -ne "_ExtendedDescription" } 
-        foreach ($column in $customColumns) {
-            Create-GroupByOneColumnView -libraryTitle $libraryDisplayName -fieldName $column.Title
+            # Remove Document and Folder Content Type
+            Remove-PnPContentTypeFromList -List $libraryDisplayName -ContentType "Document"
+            Remove-PnPContentTypeFromList -List $libraryDisplayName -ContentType "Folder"
+            
+            # Remove description field.
+            Remove-PnPField -List $libraryUrl -Identity "_ExtendedDescription" -Force
+            
+            WriteNewTitle -Title "Creating Views for $($row.SiteUrl) > $($row.Library_DisplayName)"
+            Update-AllDocumentsViewColumns -libraryTitle $libraryDisplayName
+            Create-CustomChoiceViews -libraryTitle $libraryDisplayName
+            $customColumns = Get-PnPField -List $libraryDisplayName | Where-Object { $_.Hidden -eq $false -and $_.CanBeDeleted -eq $true -and $_.ReadOnlyField -eq $false -and $_.InternalName -ne "DocumentSetDescription" -and $_.InternalName -ne "_ExtendedDescription" } 
+            foreach ($column in $customColumns) {
+                Create-GroupByOneColumnView -libraryTitle $libraryDisplayName -fieldName $column.Title
+            }
+            
+            # Always try to create these 2x group by views.
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Topic" -fieldTwoName "Year"
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Year" -fieldTwoName "Topic"
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Year" -fieldTwoName "Month"
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Month" -fieldTwoName "Year"
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Document Type" -fieldTwoName "Topic"
+            Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Topic" -fieldTwoName "Document Type"
+        } 
+        else {
+            Write-Host "Cannot create library..."
         }
-        
-        # Always try to create these 2x group by views.
-        Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Topic" -fieldTwoName "Year"
-        Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Year" -fieldTwoName "Topic"
-        Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Year" -fieldTwoName "Month"
-        Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Month" -fieldTwoName "Year"
-        Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Document Type" -fieldTwoName "Topic"
-        Create-GroupByTwoColumnView -libraryTitle $libraryDisplayName -fieldOneName "Topic" -fieldTwoName "Document Type"
     }
 }
 
