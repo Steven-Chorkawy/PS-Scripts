@@ -261,8 +261,12 @@ Function Generate-PnPSitePermissionRpt()
 }
     
 #region ***Parameters***
-$SiteURL="https://claringtonnet.sharepoint.com/sites/Procurement/"
-$ReportFile="C:\Temp\Legal-SitePermissionRpt.csv"
+#$SiteURL="https://claringtonnet.sharepoint.com/sites/Procurement/"
+$SiteURL = Read-Host "Enter Site URL"
+Connect-PnPOnline -URL $SiteURL -Interactive
+#Get the Web
+$Web = Get-PnPWeb
+$ReportFile="C:\Users\sc13\OneDrive - clarington.net\Desktop\Excel Export\SitePermissionRpt-$($Web.Title)-$().csv"
 #endregion
   
 #Call the function to generate permission report
