@@ -434,34 +434,56 @@ foreach ($row in $excelRows) {
 
         # Try to create the Document and Document Set Content Type and add metadata columns.
         try {
-            WriteNewTitle -Title "Creating $($row.Document_ContentTypeName) Content Type for $($row.SiteUrl) > $($row.Library_DisplayName)"
-            # Create the Document Content Type.
-            Add-PnPContentType -Name $row.Document_ContentTypeName -Group "Custom Content Types" -ParentContentType $document_ParentContentType | Out-Null
-            foreach ($column in ConvertColumnStringToArray -Columns $row.Document_Columns) {
-                # Add metadata columns to the Document Content Type.
-                Add-PnPFieldToContentType -ContentType $row.Document_ContentTypeName -Field $column
-                Write-Host "`tAdding '$($column)' column to '$($row.Document_ContentTypeName)' Content Type."
+            # Check if Content Type exists. 
+            try {
+                Get-PnPContentType -Identity $row.Document_ContentTypeName
             }
+            catch {
+                # Create content type if it does not exist.
+                WriteNewTitle -Title "Creating $($row.Document_ContentTypeName) Content Type for $($row.SiteUrl) > $($row.Library_DisplayName)"
+                # Create the Document Content Type.
+                Add-PnPContentType -Name $row.Document_ContentTypeName -Group "Custom Content Types" -ParentContentType $document_ParentContentType | Out-Null
+            }
+           
+            if ($row.Document_Columns) {
+                foreach ($column in ConvertColumnStringToArray -Columns $row.Document_Columns) {
+                    # Add metadata columns to the Document Content Type.
+                    Add-PnPFieldToContentType -ContentType $row.Document_ContentTypeName -Field $column
+                    Write-Host "`tAdding '$($column)' column to '$($row.Document_ContentTypeName)' Content Type."
+                }   
+            }
+
             # Try to create the Document Set Content Type and add metadata columns.
             try {
-                WriteNewTitle -Title "Creating $($row.DocumentSet_ContentTypeName) Content Type for $($row.SiteUrl) > $($row.Library_DisplayName)"
-                # Create the Document Set Content Type.
-                Add-PnPContentType -Name $row.DocumentSet_ContentTypeName -Group "Custom Content Types" -ParentContentType $documentSet_ParentContentType | Out-Null
-                foreach ($column in ConvertColumnStringToArray -Columns $row.DocumentSet_Columns) {
-                    # Add metadata to Document Set content type.
-                    Add-PnPFieldToContentType -ContentType $row.DocumentSet_ContentTypeName -Field $column
-                    Write-Host "`tAdding '$($column)' column to '$($row.DocumentSet_ContentTypeName)' Content Type."
-                    # Add default content type to the Document Set content type.
-                    Add-PnPContentTypeToDocumentSet -ContentType $row.Document_ContentTypeName -DocumentSet $row.DocumentSet_ContentTypeName
-                    Write-Host "`tAdding '$($row.Document_ContentTypeName)' to $($row.DocumentSet_ContentTypeName)."
-                    # Remove the default Document content type from the Document Set content type.
-                    Remove-PnPContentTypeFromDocumentSet -ContentType "Document" -DocumentSet $row.DocumentSet_ContentTypeName
-                    Write-Host "`tRemoving default 'Document' from $($row.DocumentSet_ContentTypeName)"
+                #Check if Content Type exists.
+                try {
+                    Get-PnPContentType -Identity $row.DocumentSet_ContentTypeName 
+                }
+                catch {
+                    # Create content type if it does not exist.
+                    WriteNewTitle -Title "Creating $($row.DocumentSet_ContentTypeName) Content Type for $($row.SiteUrl) > $($row.Library_DisplayName)"
+                    # Create the Document Set Content Type.
+                    Add-PnPContentType -Name $row.DocumentSet_ContentTypeName -Group "Custom Content Types" -ParentContentType $documentSet_ParentContentType | Out-Null                
+                }
+
+                if ($row.DocumentSet_Columns) {
+                    foreach ($column in ConvertColumnStringToArray -Columns $row.DocumentSet_Columns) {
+                        # Add metadata to Document Set content type.
+                        Add-PnPFieldToContentType -ContentType $row.DocumentSet_ContentTypeName -Field $column
+                        Write-Host "`tAdding '$($column)' column to '$($row.DocumentSet_ContentTypeName)' Content Type."
+                        # Add default content type to the Document Set content type.
+                        Add-PnPContentTypeToDocumentSet -ContentType $row.Document_ContentTypeName -DocumentSet $row.DocumentSet_ContentTypeName
+                        Write-Host "`tAdding '$($row.Document_ContentTypeName)' to $($row.DocumentSet_ContentTypeName)."
+                        # Remove the default Document content type from the Document Set content type.
+                        Remove-PnPContentTypeFromDocumentSet -ContentType "Document" -DocumentSet $row.DocumentSet_ContentTypeName
+                        Write-Host "`tRemoving default 'Document' from $($row.DocumentSet_ContentTypeName)"
+                    }   
                 }
             }
             catch {
                 Write-Host "Failed to create '$($row.Document_ContentTypeName)' Content Type!" -ForegroundColor Red
                 Write-Host $_
+                $ALL_CONTENT_TYPES_FOUND = $false
             }
         }
         catch {
@@ -470,7 +492,7 @@ foreach ($row in $excelRows) {
             $ALL_CONTENT_TYPES_FOUND = $false
         }
 
-        if($ALL_CONTENT_TYPES_FOUND) {
+        if ($ALL_CONTENT_TYPES_FOUND) {
             # Create Libraries.
             WriteNewTitle -Title "Creating '$($row.Library_DisplayName)' Library..."
             $libraryUrl = $row.Library_Name
