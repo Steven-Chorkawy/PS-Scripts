@@ -434,12 +434,11 @@ foreach ($row in $excelRows) {
 
         # Try to create the Document and Document Set Content Type and add metadata columns.
         try {
-            # Check if Content Type exists. 
-            try {
-                Get-PnPContentType -Identity $row.Document_ContentTypeName
-            }
-            catch {
-                # Create content type if it does not exist.
+            # Check if Content Type exists.
+            $currentDocumentContentType = Get-PnPContentType -Identity $row.Document_ContentTypeName
+        
+            # Create content type if it does not exist.
+            if (!$currentDocumentContentType) {
                 WriteNewTitle -Title "Creating $($row.Document_ContentTypeName) Content Type for $($row.SiteUrl) > $($row.Library_DisplayName)"
                 # Create the Document Content Type.
                 Add-PnPContentType -Name $row.Document_ContentTypeName -Group "Custom Content Types" -ParentContentType $document_ParentContentType | Out-Null
@@ -456,11 +455,10 @@ foreach ($row in $excelRows) {
             # Try to create the Document Set Content Type and add metadata columns.
             try {
                 #Check if Content Type exists.
-                try {
-                    Get-PnPContentType -Identity $row.DocumentSet_ContentTypeName 
-                }
-                catch {
-                    # Create content type if it does not exist.
+                $currentDocumentSetContentType = Get-PnPContentType -Identity $row.DocumentSet_ContentTypeName 
+
+                # Create content type if it does not exist.
+                if (!$currentDocumentSetContentType) {
                     WriteNewTitle -Title "Creating $($row.DocumentSet_ContentTypeName) Content Type for $($row.SiteUrl) > $($row.Library_DisplayName)"
                     # Create the Document Set Content Type.
                     Add-PnPContentType -Name $row.DocumentSet_ContentTypeName -Group "Custom Content Types" -ParentContentType $documentSet_ParentContentType | Out-Null                
