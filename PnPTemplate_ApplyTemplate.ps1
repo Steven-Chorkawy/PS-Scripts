@@ -4,6 +4,12 @@ $siteUrl = Read-Host "Enter URL of the site to deploy the template (e.g., https:
 $Path = Read-Host "Enter the path to your site template (e.g., C:\Temp\MoCCommittee.pnp)"
 
 Connect-PnPOnline -url $siteUrl -ClientId $PnPID -Interactive
+
+# Disable "NoScript" on the site before applying Invoke-PnPSiteTemplate.
+# https://github.com/pnp/powershell/discussions/4014#discussioncomment-9774445
+# https://clarington.freshservice.com/a/tickets/44698?current_tab=details&focus_conversation=8089164582
+Set-PnPTenantSite -Url $siteUrl -DenyAddAndCustomizePages:$false
+
 Invoke-PnPSiteTemplate -Path $Path -ClearNavigation
 
 # remove document content type
