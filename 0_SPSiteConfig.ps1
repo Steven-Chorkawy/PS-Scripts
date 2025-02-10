@@ -63,6 +63,7 @@ Function CheckMetadataColumns {
     $output = $true
     foreach ($column in $columnArray) {
         try {
+            # TODO: Trim the column name string before checking if it exists.
             Get-PnPField -Identity $column
         }
         catch {
