@@ -32,10 +32,12 @@ Set-PnPContentType -Identity $ContentTypeName -List $TimesheetList -ReadOnly $fa
 $workDateField = Get-PnPField -List $TimesheetList -Identity "WorkDate"
 Add-PnPFieldToContentType -ContentType $ContentTypeName -Field $workDateField
 
+# TODO: Add this field to a site level content type.  Not the CT Hub content type.
 # Query and add the lookup field to the list content type.  This field will not copy from the CTHub.
 $projectField = Get-PnPField -List $TimesheetList -Identity "Project"
 Add-PnPFieldToContentType -ContentType $ContentTypeName -Field $projectField
 
+# TODO: Add this field to a site level content type.  Not the CT Hub content type.
 # Query and add the lookup field to the list content type.  This field will not copy from the CTHub.
 $taskField = Get-PnPField -List $TimesheetList -Identity "Task"
 Add-PnPFieldToContentType -ContentType $ContentTypeName -Field $taskField
@@ -61,6 +63,3 @@ $titleField.SetShowInNewForm($false)
 $titleField.Update()
 
 Invoke-PnPQuery
-
-# Required to force document sets to update.
-#Invoke-PnPQuery
