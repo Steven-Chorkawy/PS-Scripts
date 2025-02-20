@@ -5,4 +5,6 @@ $Path = Read-Host "Enter the path where you'd like to save the site template (e.
 
 Connect-PnPOnline -url $siteUrl -ClientId $PnPID -Interactive
 Get-PnPSiteTemplate -out $Path -ListsToExtract "TimesheetTasks", "TimesheetProjects", "Timesheet" -ExcludeHandlers ApplicationLifecycleManagement, AuditSettings, ComposedLook, CustomActions, ExtensibilityProviders, Features, Fields, Files, ImageRenditions, Navigation, PageContents, Pages, PropertyBagEntries, Publishing, RegionalSettings, SearchSettings, SiteFooter, SiteHeader, SitePolicy, SiteSecurity, SiteSettings, SupportedUILanguages, SyntexModels, Tenant, TermGroups, Theme, WebApiPermissions, WebSettings, Workflows -Force
+
+Write-Host "The End."
 #-ExcludeHandlers SiteSecurityTime
