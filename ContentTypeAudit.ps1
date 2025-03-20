@@ -59,10 +59,10 @@ for ($allSiteIndex = 0; $allSiteIndex -lt $ALL_SITES.Count; $allSiteIndex++) {
         for ($contentTypeIndex = 0; $contentTypeIndex -lt $libraryContentTypes.Count; $contentTypeIndex++) {
             $currentContentType = $libraryContentTypes[$contentTypeIndex]
             Write-Host "`t`t$($contentTypeIndex+1)/$($libraryContentTypes.Count) - $($currentContentType.Name) - $($currentContentType.Group)"
-            Write-Host "`t`tParent CT: $($currentContentType.Parent.Name) - $($currentContentType.Parent.Group)"
+            #Write-Host "`t`tParent CT: $($currentContentType.Parent.Name) - $($currentContentType.Parent.Group)"
 
             # This should be the Organizational Content Type, Document, Document Set, Folder, or List item.
-            Write-Host "`t`tParents Parent CT: $($currentContentType.Parent.Parent.Name) - $($currentContentType.Parent.Parent.Group)"
+            #Write-Host "`t`tParents Parent CT: $($currentContentType.Parent.Parent.Name) - $($currentContentType.Parent.Parent.Group)"
             Write-Host "`n"
 
             $EXPORT_OBJECT = @{
