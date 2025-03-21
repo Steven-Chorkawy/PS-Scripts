@@ -87,9 +87,9 @@ for ($allSiteIndex = 0; $allSiteIndex -lt $ALL_SITES.Count; $allSiteIndex++) {
     }
     catch {
         Write-Host "`n`tSomething went wrong!" -ForegroundColor Red
-        Write-Host "`t$($_.ErrorDetails.Message)" -ForegroundColor Red
+        Write-Host "`t$($_.Exception.Message)" -ForegroundColor Red
         $ERROR_LOG_OBJECT = @{
-            "Error"                     = $_.ErrorDetails.Message
+            "Error"                     = $_.Exception.Message
             "Site Title"                = $currentSite.Title;
             "Site URL"                  = $currentSite.Url;
             "Site Status"               = $currentSite.Status
