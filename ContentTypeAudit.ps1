@@ -54,7 +54,7 @@ for ($allSiteIndex = 0; $allSiteIndex -lt $ALL_SITES.Count; $allSiteIndex++) {
 
         for ($libraryIndex = 0; $libraryIndex -lt $documentLibraries.Count; $libraryIndex++) {
             $currentLibrary = $documentLibraries[$libraryIndex]
-            $currentLibraryDefaultViewUrl = "$($currentSite.Url)$($currentLibrary.DefaultViewUrl.TrimStart("/"))"
+            $currentLibraryDefaultViewUrl = "$("https://claringtonnet.sharepoint.com")$($currentLibrary.DefaultViewUrl)"
             Write-Host "`t$($libraryIndex+1)/$($documentLibraries.Count) - $($currentLibrary.Title) - $($currentLibraryDefaultViewUrl) - $($currentLibrary.ItemCount) Items"
 
             $libraryContentTypes = Get-PnPContentType -List $currentLibrary.Id -Includes @("Parent", "Parent.Parent")
@@ -102,7 +102,7 @@ for ($allSiteIndex = 0; $allSiteIndex -lt $ALL_SITES.Count; $allSiteIndex++) {
             "Parent Content Type Group" = $currentContentType.Parent.Parent.Group;
             "Export Result"             = "Failed";
         }
-        $ERROR_LOG_OBJECT | Select-Object "Error", "Site Title", "Site URL", "Site Status", "Library Title", "Library URL", "Library Item Count", "Content Type", "Content Type Group", "Parent Content Type", "Parent Content Type Group" | Export-Csv -Path "$($DEFAULT_EXPORT_FOLDER)\$($ERROR_LOG_FILE_NAME)" -Append -NoTypeInformation
+        $ERROR_LOG_OBJECT | Select-Object "Error", "Site Title", "Site URL", "Site Status", "Library Title", "Library URL", "Library Item Count", "Content Type", "Content Type Group", "Parent Content Type", "Parent Content Type Group", "Export Result" | Export-Csv -Path "$($DEFAULT_EXPORT_FOLDER)\$($ERROR_LOG_FILE_NAME)" -Append -NoTypeInformation
 
         $EXPORT_OBJECT = @{
             "Site Title"                = $currentSite.Title;
